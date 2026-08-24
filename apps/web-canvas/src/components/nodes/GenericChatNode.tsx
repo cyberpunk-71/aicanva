@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { Send, Bot, User, Wrench, Loader2, X, Sparkles, Maximize2, Minimize2, Copy, Check, Zap } from "lucide-react";
+import { Send, Bot, User, Wrench, Loader2, X, Maximize2, Minimize2, Copy, Check, Zap, RotateCcw } from "lucide-react";
 import { useCanvasStore, type CanvasNode } from "../../store/canvasStore";
 
 const API_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:3001`;
@@ -189,6 +189,16 @@ export function GenericChatNode({ id, data }: NodeProps & { data: Record<string,
             </div>
           </div>
           <div className="flex items-center gap-1">
+            <button onClick={() => {
+              fetch(`${API_URL}/api/hermes/new-session`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ node_id: id }),
+              });
+              updateNode(id, { messages: [], status: "idle" });
+            }} className="p-1.5 rounded-lg text-slate-600 hover:text-amber-400 hover:bg-amber-500/10 transition-all" title="New Session">
+              <RotateCcw size={13} />
+            </button>
             <button onClick={() => setIsExpanded(!isExpanded)} className="p-1.5 rounded-lg text-slate-600 hover:text-indigo-400 hover:bg-indigo-500/10 transition-all">
               {isExpanded ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
             </button>

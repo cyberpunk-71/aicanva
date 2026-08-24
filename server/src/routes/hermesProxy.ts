@@ -4,12 +4,16 @@ import fs from "fs";
 import path from "path";
 
 const HERMES_WORKSPACE = "/home/hermes/workspace";
+const HERMES_CLI = "sudo -u hermes HERMES_HOME=/home/hermes/.hermes/profiles/iva /home/hermes/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main";
 
 export const hermesProxy = Router();
 
+// Track sessions per node
+const nodeSessions: Map<string, string> = new Map();
+
 /**
  * POST /api/hermes/chat — Send a message to Hermes via CLI
- * with canvas-aware context injection
+ * Maintains session context per node_id
  */
 hermesProxy.post("/chat", async (req: Request, res: Response) => {
   const { message, context, node_id } = req.body;
@@ -23,59 +27,102 @@ hermesProxy.post("/chat", async (req: Request, res: Response) => {
   res.setHeader("Connection", "keep-alive");
   res.setHeader("X-Accel-Buffering", "no");
 
-  // Strong canvas context
-  const canvasContext = `CRITICAL CANVAS WORKSPACE CONTEXT:
-You are responding to a user on a CANVAS WORKSPACE at http://100.86.244.6:5173.
+  // Canvas context — only sent on first message of a session
+  const sessionId = node_id ? nodeSessions.get(node_id) : null;
+  const isNewSession = !sessionId;
 
-When the user asks to CREATE, BUILD, VISUALIZE, or SHOW anything:
-1. Create a self-contained HTML file in /home/hermes/workspace/
-2. The canvas will auto-detect the HTML file and render it as an interactive card
-
-For VISUAL content (charts, dashboards, simulations, reports):
-- Create a single self-contained HTML file with inline CSS and JS
-- The canvas renders full HTML in iframes (scripts work)
-- Use modern CSS, inline SVG, Chart.js CDN, etc.
-
-Available MCP canvas tools (if running in gateway mode):
-- mcp__canvas_workspace__create_canvas_card(type, label, data, position, link_to)
-- mcp__canvas_workspace__update_canvas_card(id, data)
-- mcp__canvas_workspace__link_canvas_cards(source, target)
-
-Card types: chat, code, research, scratchpad, skybridge
-${context ? `\nAdditional: ${context}` : ''}`;
+  const canvasContext = isNewSession ? `CANVAS WORKSPACE — You are on an infinite canvas at http://100.86.244.6:5173.
+When creating visual/interactive content, save it as a self-contained HTML file in /home/hermes/workspace/ with a descriptive filename.
+The canvas auto-detects HTML files you create and renders them as interactive cards.
+Always mention the exact filename when you create a file.` : '';
 
   try {
-    const escapedCtx = canvasContext.replace(/'/g, "'\\''").replace(/\n/g, "\\n");
-    const escapedMsg = message.replace(/'/g, "'\\''").replace(/\n/g, "\\n");
+    // Build command with session continuity
+    let cmd = HERMES_CLI;
 
-    const result = execSync(
-      `sudo -u hermes HERMES_HOME=/home/hermes/.hermes/profiles/iva /home/hermes/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main -z '${escapedCtx}\\n\\nUser: ${escapedMsg}' 2>&1`,
-      { timeout: 180000, encoding: "utf-8", maxBuffer: 1024 * 1024 * 10 }
-    );
+    if (sessionId) {
+      // Resume existing session
+      cmd += ` --resume ${sessionId}`;
+    } else if (node_id) {
+      // New session — use --continue to pick up last session or start fresh
+      cmd += ` --continue`;
+    }
+
+    const fullMessage = canvasContext
+      ? `${canvasContext}\n\nUser: ${message}`
+      : message;
+
+    const escapedMsg = fullMessage.replace(/'/g, "'\\''");
+    cmd += ` -z '${escapedMsg}' 2>&1`;
+
+    const result = execSync(cmd, {
+      timeout: 180000,
+      encoding: "utf-8",
+      maxBuffer: 1024 * 1024 * 10,
+    });
 
     const response = result.trim();
 
-    // Auto-detect HTML file creation
-    const htmlFileMatch = response.match(/(?:created?|saved?|wrote?|generated?|built?).*?(?:file|html).*?[:\s]+(?:\/home\/hermes\/workspace\/)?([^\s\n]+\.(?:html|htm))/i);
-    let autoCard = null;
+    // Extract session ID from output if present
+    const sessionMatch = response.match(/session[:\s]+([a-zA-Z0-9_-]+)/i);
+    if (sessionMatch && node_id) {
+      nodeSessions.set(node_id, sessionMatch[1]);
+    }
 
-    if (htmlFileMatch) {
-      const filename = htmlFileMatch[1];
-      const filepath = path.join(HERMES_WORKSPACE, filename);
-      if (fs.existsSync(filepath)) {
-        const htmlContent = fs.readFileSync(filepath, "utf-8");
-        autoCard = { filename, filepath, htmlContent: htmlContent.substring(0, 100000) };
+    // Auto-detect HTML file creation — multiple patterns
+    const htmlPatterns = [
+      /(?:created?|saved?|wrote?|generated?|built?|wrote)\s+(?:a\s+)?(?:new\s+)?(?:file|html|report|dashboard|chart|visualization)[:\s]+(?:`)?(?:\/home\/hermes\/workspace\/)?([^\s\n`]+\.(?:html|htm))(?:`)?/i,
+      /(?:File|Output|Report|Dashboard|HTML)[:\s]+(?:`)?(?:\/home\/hermes\/workspace\/)?([^\s\n`]+\.(?:html|htm))(?:`)?/i,
+      /(?:`)?\/home\/hermes\/workspace\/([^\s\n`]+\.(?:html|htm))(?:`)?/i,
+      /([a-zA-Z0-9_-]+\.(?:html|htm))/i,
+    ];
+
+    let detectedFile = null;
+    for (const pattern of htmlPatterns) {
+      const match = response.match(pattern);
+      if (match) {
+        const filename = match[1];
+        const filepath = path.join(HERMES_WORKSPACE, filename);
+        if (fs.existsSync(filepath)) {
+          detectedFile = { filename, filepath };
+          break;
+        }
       }
     }
 
+    // Also scan workspace for recently created HTML files (last 60 seconds)
+    if (!detectedFile) {
+      try {
+        const files = fs.readdirSync(HERMES_WORKSPACE);
+        const recentFiles = files
+          .filter(f => f.endsWith('.html') || f.endsWith('.htm'))
+          .map(f => ({
+            name: f,
+            path: path.join(HERMES_WORKSPACE, f),
+            mtime: fs.statSync(path.join(HERMES_WORKSPACE, f)).mtimeMs,
+          }))
+          .filter(f => Date.now() - f.mtime < 60000) // Created in last 60 seconds
+          .sort((a, b) => b.mtime - a.mtime);
+
+        if (recentFiles.length > 0) {
+          detectedFile = { filename: recentFiles[0].name, filepath: recentFiles[0].path };
+        }
+      } catch {}
+    }
+
+    // Send response
     res.write(`data: ${JSON.stringify({ type: "message", content: response })}\n\n`);
 
-    if (autoCard) {
-      res.write(`data: ${JSON.stringify({
-        type: "auto_card",
-        filename: autoCard.filename,
-        html: autoCard.htmlContent,
-      })}\n\n`);
+    // If we detected an HTML file, send it for auto-card creation
+    if (detectedFile) {
+      try {
+        const htmlContent = fs.readFileSync(detectedFile.filepath, "utf-8");
+        res.write(`data: ${JSON.stringify({
+          type: "auto_card",
+          filename: detectedFile.filename,
+          html: htmlContent.substring(0, 200000),
+        })}\n\n`);
+      } catch {}
     }
 
     res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
@@ -89,6 +136,17 @@ ${context ? `\nAdditional: ${context}` : ''}`;
     res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
     res.end();
   }
+});
+
+/**
+ * POST /api/hermes/new-session — Reset session for a node
+ */
+hermesProxy.post("/new-session", (req: Request, res: Response) => {
+  const { node_id } = req.body;
+  if (node_id) {
+    nodeSessions.delete(node_id);
+  }
+  res.json({ ok: true });
 });
 
 /**
