@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import path from "path";
 import { createServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { canvasRoutes } from "./routes/canvasRoutes.js";
@@ -102,6 +103,13 @@ function broadcastToAll(
 app.locals.broadcast = (message: object) => broadcastToAll(wss, message);
 app.locals.canvasState = canvasState;
 app.locals.mcpServer = mcpServer;
+
+// Serve Hermes workspace files (HTML reports, etc.)
+app.use("/hermes-files", express.static("/home/hermes/workspace", {
+  setHeaders: (res) => {
+    res.setHeader("X-Frame-Options", "ALLOWALL");
+  }
+}));
 
 // Routes
 app.use("/api/canvas", canvasRoutes);
