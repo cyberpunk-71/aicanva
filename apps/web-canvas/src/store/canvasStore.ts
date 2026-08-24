@@ -121,6 +121,8 @@ const defaultNodeData: Record<CanvasNode["data"]["type"], CanvasNode["data"]> = 
   },
 };
 
+const API_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:3001`;
+
 export const useCanvasStore = create<CanvasState>()(
   persist(
     (set, get) => ({
@@ -176,6 +178,8 @@ export const useCanvasStore = create<CanvasState>()(
           edges: get().edges.filter((e) => e.source !== id && e.target !== id),
           selectedNodeId: get().selectedNodeId === id ? null : get().selectedNodeId,
         });
+        // Sync deletion to server
+        fetch(`${API_URL}/api/canvas/nodes/${id}`, { method: "DELETE" }).catch(() => {});
       },
 
       updateNodePosition: (id, position) => {

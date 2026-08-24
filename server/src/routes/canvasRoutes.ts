@@ -68,6 +68,17 @@ canvasRoutes.post("/import", (req: Request, res: Response) => {
   }
 });
 
+// DELETE /api/canvas/nodes/:id — Delete a specific node
+canvasRoutes.delete("/nodes/:id", (req: Request, res: Response) => {
+  const canvasState: CanvasStateService = req.app.locals.canvasState;
+  const broadcast: (msg: object) => void = req.app.locals.broadcast;
+  const { id } = req.params;
+
+  canvasState.deleteNode(id);
+  broadcast({ type: "canvas:delete-node", payload: { id } });
+  res.json({ success: true, deleted: id });
+});
+
 // DELETE /api/canvas — Clear all canvas data
 canvasRoutes.delete("/", (req: Request, res: Response) => {
   const canvasState: CanvasStateService = req.app.locals.canvasState;

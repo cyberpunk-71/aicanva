@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { Send, Bot, User, Wrench, Loader2, X, Maximize2, Minimize2, Copy, Check, Zap, RotateCcw, FileCode } from "lucide-react";
+import { Send, Bot, User, Wrench, Loader2, X, Maximize2, Minimize2, Copy, Check, Zap, RotateCcw, FileCode, Mic, MicOff, Square } from "lucide-react";
 import { useCanvasStore, type CanvasNode } from "../../store/canvasStore";
 
 const API_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:3001`;
@@ -23,12 +23,85 @@ export function GenericChatNode({ id, data }: NodeProps & { data: Record<string,
   const [isExpanded, setIsExpanded] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const recognitionRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Voice recording
+  const toggleRecording = () => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      alert('Speech recognition not supported in this browser. Use Chrome.');
+      return;
+    }
+
+    if (!isRecording) {
+      // Start recording
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      let finalTranscript = input;
+
+      recognition.onresult = (event: any) => {
+        let interimTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript + ' ';
+          } else {
+            interimTranscript += event.results[i][0].transcript;
+          }
+        }
+        setInput(finalTranscript + interimTranscript);
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsRecording(false);
+        setIsPaused(false);
+      };
+
+      recognition.onend = () => {
+        if (isRecording && !isPaused) {
+          // Restart if still recording
+          try { recognition.start(); } catch {}
+        }
+      };
+
+      recognition.start();
+      recognitionRef.current = recognition;
+      setIsRecording(true);
+      setIsPaused(false);
+    } else if (!isPaused) {
+      // Pause recording
+      recognitionRef.current?.stop();
+      setIsPaused(true);
+    } else {
+      // Resume recording
+      try {
+        recognitionRef.current?.start();
+        setIsPaused(false);
+      } catch {
+        // If can't resume, create new instance
+        setIsRecording(false);
+        setTimeout(toggleRecording, 100);
+      }
+    }
+  };
+
+  const stopRecording = () => {
+    recognitionRef.current?.stop();
+    recognitionRef.current = null;
+    setIsRecording(false);
+    setIsPaused(false);
+  };
 
   const sendToHermes = async (userMessage: string) => {
     setIsStreaming(true);
@@ -303,15 +376,39 @@ export function GenericChatNode({ id, data }: NodeProps & { data: Record<string,
       {/* Input */}
       <div className="px-4 py-3 border-t border-white/5">
         <div className="flex gap-2 items-end">
+          {/* Voice button */}
+          <button onClick={toggleRecording}
+            className={`p-2.5 rounded-xl transition-all flex-shrink-0 ${
+              isRecording && !isPaused
+                ? "bg-red-500/20 text-red-400 animate-pulse border border-red-500/30"
+                : isRecording && isPaused
+                ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                : "bg-white/[0.03] text-slate-500 hover:text-indigo-400 hover:bg-indigo-500/10 border border-white/[0.06]"
+            }`}
+            title={isRecording ? (isPaused ? "Resume recording" : "Pause recording") : "Start recording"}>
+            {isRecording && !isPaused ? <Mic size={14} className="text-red-400" /> : isRecording && isPaused ? <Mic size={14} className="text-amber-400" /> : <MicOff size={14} />}
+          </button>
+
           <textarea ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown}
-            placeholder={isStreaming ? "Hermes is responding..." : "Ask Hermes anything..."} rows={1} disabled={isStreaming}
+            placeholder={isStreaming ? "Hermes is responding..." : isRecording ? "Listening... speak now" : "Ask Hermes anything..."} rows={1} disabled={isStreaming}
             className="flex-1 px-4 py-2.5 text-[12px] bg-white/[0.03] border border-white/[0.06] rounded-xl text-slate-200 placeholder-slate-600 focus:outline-none focus:border-indigo-500/40 focus:bg-white/[0.05] transition-all resize-none min-h-[40px] max-h-[100px] disabled:opacity-50"
             onInput={(e) => { const t = e.currentTarget; t.style.height = "auto"; t.style.height = Math.min(t.scrollHeight, 100) + "px"; }} />
+
+          {/* Send button */}
           <button onClick={handleSend} disabled={!input.trim() || isStreaming}
             className="p-2.5 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 disabled:opacity-20 rounded-xl transition-all shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/30 active:scale-95 flex-shrink-0">
             <Send size={14} className="text-white" />
           </button>
         </div>
+        {isRecording && (
+          <div className="flex items-center gap-2 mt-2 text-[10px]">
+            <div className={`w-2 h-2 rounded-full ${isPaused ? 'bg-amber-400' : 'bg-red-400 animate-pulse'}`} />
+            <span className="text-slate-500">{isPaused ? 'Paused — click mic to resume' : 'Recording — click mic to pause'}</span>
+            <button onClick={stopRecording} className="text-slate-600 hover:text-red-400 ml-auto">
+              <Square size={10} />
+            </button>
+          </div>
+        )}
       </div>
 
       <Handle type="source" position={Position.Bottom} className="!bg-indigo-500 !border-indigo-400 !w-3 !h-3" />
