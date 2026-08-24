@@ -6,7 +6,7 @@
 
 ## Current System Status
 
-**Phase:** ALL PHASES COMPLETE (1–5)
+**Phase:** ALL PHASES COMPLETE (1–6)
 **Branch:** `arena/01a032e8-aicanva`
 **Last Updated:** 2026-08-24
 
@@ -14,19 +14,21 @@
 
 - [x] **Phase 1:** Monorepo scaffolding, governance docs, pnpm workspace
 - [x] **Phase 2:** Skybridge MCP tools (research_tree, interactive_checklist, time_slot_picker) with React views
-- [x] **Phase 3:** Gateway server with Express + WebSocket + SQLite + MCP HTTP/SSE endpoints
+- [x] **Phase 3:** Gateway server with Express + WebSocket + JSON file persistence + MCP HTTP/SSE endpoints
 - [x] **Phase 4:** Infinite canvas frontend with ReactFlow, custom nodes, status edges, toolbar
 - [x] **Phase 5:** Event synchronization hooks, pointer-events overlay, final polish
+- [x] **Phase 6:** Topology A deployment automation, PM2 config, Hermes/Eva integration
 
 ---
 
 ## Immediate Next Steps (For Incoming Agent)
 
-1. **Run `pnpm install`** from repo root to install all workspace dependencies.
-2. **Run `pnpm dev`** to start both the gateway server (port 3001) and canvas frontend (port 5173).
-3. **Verify canvas loads** at `http://localhost:5173` — test pan/zoom, node creation from toolbar, and edge connections.
-4. **Test MCP endpoint** — `curl -X POST http://localhost:3001/mcp` with a `create_canvas_card` payload to verify WebSocket broadcast.
-5. **Test Skybridge widgets** — Click a SkybridgeNode to verify iframe loads and postMessage bridge works.
+1. **Deploy to VPS:** Transfer repo to VPS and run `./scripts/setup-topology-a.sh`
+2. **Configure Hermes/Eva:** Use generated configs in `config/hermes-canvas.yaml`
+3. **Open firewall:** `sudo ufw allow 5173/tcp` for browser access
+4. **Verify canvas loads** at `http://<VPS_IP>:5173` — test pan/zoom, node creation from toolbar
+5. **Test MCP endpoint** — `curl -X POST http://localhost:3001/mcp` with a `create_canvas_card` payload
+6. **Test Hermes integration** — Verify Hermes can call canvas MCP tools locally
 
 ---
 
@@ -42,19 +44,26 @@
 
 ### Commands
 ```bash
-# Install dependencies
-pnpm install
+# === Development (local) ===
+pnpm install              # Install dependencies
+pnpm dev                  # Start all services in dev mode
+pnpm dev:canvas           # Frontend only
+pnpm dev:server           # Gateway only
+pnpm dev:skybridge        # Skybridge MCP only
 
-# Start all services in dev mode
-pnpm dev
+# === Production (VPS — Topology A) ===
+chmod +x scripts/setup-topology-a.sh
+./scripts/setup-topology-a.sh     # Full VPS deployment
 
-# Build for production
-pnpm build
+# PM2 management
+pm2 status                # View service status
+pm2 logs                  # View all logs
+pm2 restart all           # Restart all services
+pm2 monit                 # Real-time monitoring
 
-# Run individual services
-pnpm dev:canvas    # Frontend only
-pnpm dev:server    # Gateway only
-pnpm dev:skybridge # Skybridge MCP only
+# Hermes config generation
+chmod +x scripts/configure-hermes.sh
+./scripts/configure-hermes.sh     # Generate Hermes integration configs
 ```
 
 ---

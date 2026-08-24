@@ -107,3 +107,55 @@
 ### Edge Animations
 - StatusEdge with CSS gradient animation
 - Color states: gray (idle), blue pulse (running), green (success), red (error)
+
+---
+
+## Phase 6: Topology A Deployment Automation (2026-08-24)
+
+### Deployment Scripts
+
+#### `scripts/setup-topology-a.sh`
+- **Description:** Full VPS deployment automation script
+- **Capabilities:**
+  - Installs Node.js 20+ and pnpm if missing
+  - Builds all workspace packages for production
+  - Installs and configures PM2 process manager
+  - Starts canvas-gateway (port 3001) and canvas-frontend (port 5173)
+  - Generates `.env` and Hermes integration configs
+  - Configures PM2 startup for reboot persistence
+- **Usage:** `chmod +x scripts/setup-topology-a.sh && ./scripts/setup-topology-a.sh`
+
+#### `scripts/configure-hermes.sh`
+- **Description:** Generates Hermes/Eva MCP integration config files
+- **Output:**
+  - `config/hermes-canvas.yaml` — YAML config for Hermes config.yaml
+  - `config/hermes-canvas.json` — JSON config for mcp_servers.json
+  - `config/canvas.env` — Environment variables
+- **Usage:** `chmod +x scripts/configure-hermes.sh && ./scripts/configure-hermes.sh`
+
+### PM2 Configuration
+
+#### `pm2.config.js`
+- **Services managed:**
+  1. `canvas-gateway` — Express+WS server on port 3001
+  2. `canvas-frontend` — Vite preview server on port 5173
+- **Features:** Auto-restart, memory limits, log rotation, boot persistence
+
+### Hermes/Eva Integration
+
+#### `server/src/config/hermesConfig.ts`
+- **Description:** TypeScript module for generating Hermes MCP configs programmatically
+- **Exports:** `generateHermesConfig()`, `generateYamlConfig()`, `generateJsonConfig()`
+- **MCP Servers configured:**
+  - `canvas_workspace` — HTTP transport to `http://localhost:3001/mcp`
+  - `skybridge_tools` — stdio transport to Skybridge MCP server
+
+### Documentation
+
+#### `docs/TOPOLOGY_A_SETUP.md`
+- Complete step-by-step deployment guide
+- Firewall configuration (ufw)
+- Hermes/Eva integration instructions
+- Nginx reverse proxy with SSL setup
+- Troubleshooting section
+- File locations reference table
