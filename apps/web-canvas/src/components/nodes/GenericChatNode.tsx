@@ -128,10 +128,24 @@ export function GenericChatNode({ id, data }: NodeProps & { data: Record<string,
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
-  const handleCopy = (text: string, idx: number) => {
-    navigator.clipboard.writeText(text);
-    setCopiedIdx(idx);
-    setTimeout(() => setCopiedIdx(null), 2000);
+  const handleCopy = async (text: string, idx: number) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedIdx(idx);
+      setTimeout(() => setCopiedIdx(null), 2000);
+    } catch {
+      // Fallback for older browsers
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.position = "fixed";
+      textArea.style.left = "-999999px";
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textArea);
+      setCopiedIdx(idx);
+      setTimeout(() => setCopiedIdx(null), 2000);
+    }
   };
 
   const statusConfig = {
@@ -218,8 +232,8 @@ export function GenericChatNode({ id, data }: NodeProps & { data: Record<string,
               </div>
               {msg.role === "assistant" && msg.content && (
                 <button onClick={() => handleCopy(msg.content, i)}
-                  className="absolute -right-1 -top-1 p-1 rounded-md bg-white/5 text-slate-600 hover:text-indigo-400 opacity-0 group-hover:opacity-100 transition-all">
-                  {copiedIdx === i ? <Check size={10} className="text-emerald-400" /> : <Copy size={10} />}
+                  className="absolute -right-2 -top-2 p-1.5 rounded-lg bg-white/10 text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/20 transition-all border border-white/5">
+                  {copiedIdx === i ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
                 </button>
               )}
               {msg.timestamp && (

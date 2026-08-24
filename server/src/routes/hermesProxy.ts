@@ -7,10 +7,6 @@ export const hermesProxy = Router();
 
 /**
  * POST /api/hermes/chat — Send a message to Hermes
- * Tries multiple connection methods:
- * 1. HTTP API at HERMES_API_BASE
- * 2. Hermes CLI via sudo
- * 3. Direct socket/IPC if available
  */
 hermesProxy.post("/chat", async (req: Request, res: Response) => {
   const { message, context, node_id } = req.body;
@@ -24,57 +20,71 @@ hermesProxy.post("/chat", async (req: Request, res: Response) => {
   res.setHeader("Connection", "keep-alive");
   res.setHeader("X-Accel-Buffering", "no");
 
-  // Method 1: Try HTTP API
-  try {
-    const response = await fetch(`${HERMES_API}/chat/completions`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        messages: [
-          ...(context ? [{ role: "system", content: context }] : []),
-          { role: "user", content: message },
-        ],
-        stream: true,
-      }),
-      signal: AbortSignal.timeout(5000),
-    });
+  // Try multiple endpoint formats
+  const endpoints = [
+    `${HERMES_API}/chat/completions`,
+    `${HERMES_API}/chat`,
+    `${HERMES_API}/completions`,
+    `${HERMES_API.replace('/v1', '')}/chat/completions`,
+    `${HERMES_API.replace('/v1', '')}/chat`,
+  ];
 
-    if (response.ok) {
-      const reader = response.body?.getReader();
-      if (reader) {
-        const decoder = new TextDecoder();
-        let buffer = "";
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() || "";
-          for (const line of lines) {
-            if (line.startsWith("data: ")) {
-              const data = line.slice(6).trim();
-              if (data === "[DONE]") {
-                res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
-                res.end();
-                return;
-              }
-              try {
-                const parsed = JSON.parse(data);
-                const content = parsed.choices?.[0]?.delta?.content;
-                if (content) {
-                  res.write(`data: ${JSON.stringify({ type: "chunk", content })}\n\n`);
+  let connected = false;
+
+  for (const endpoint of endpoints) {
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            ...(context ? [{ role: "system", content: context }] : []),
+            { role: "user", content: message },
+          ],
+          stream: true,
+          model: "hermes",
+        }),
+        signal: AbortSignal.timeout(10000),
+      });
+
+      if (response.ok) {
+        connected = true;
+        const reader = response.body?.getReader();
+        if (reader) {
+          const decoder = new TextDecoder();
+          let buffer = "";
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
+            for (const line of lines) {
+              if (line.startsWith("data: ")) {
+                const data = line.slice(6).trim();
+                if (data === "[DONE]") {
+                  res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
+                  res.end();
+                  return;
                 }
-              } catch {}
+                try {
+                  const parsed = JSON.parse(data);
+                  const content = parsed.choices?.[0]?.delta?.content || parsed.content || parsed.text;
+                  if (content) {
+                    res.write(`data: ${JSON.stringify({ type: "chunk", content })}\n\n`);
+                  }
+                } catch {}
+              }
             }
           }
+          res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
+          res.end();
+          return;
         }
-        res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
-        res.end();
-        return;
       }
+    } catch (e) {
+      // Try next endpoint
     }
-  } catch (e) {
-    // Fall through to method 2
   }
 
   // Method 2: Try Hermes CLI
@@ -92,10 +102,10 @@ hermesProxy.post("/chat", async (req: Request, res: Response) => {
     // Fall through to error
   }
 
-  // Method 3: All methods failed
+  // All methods failed
   res.write(`data: ${JSON.stringify({
     type: "error",
-    content: `Cannot reach Hermes. Tried:\n• HTTP API at ${HERMES_API}\n• Hermes CLI\n\nTo fix:\n1. Check if Hermes is running: sudo systemctl status hermes-gateway-iva\n2. Start it: sudo systemctl start hermes-gateway-iva\n3. Check logs: sudo journalctl -u hermes-gateway-iva -f`
+    content: `Cannot reach Hermes. Tried ${endpoints.length} API endpoints and CLI.\n\nTo fix:\n1. Check: sudo systemctl status hermes-gateway-iva\n2. Restart: sudo systemctl restart hermes-gateway-iva\n3. Logs: sudo journalctl -u hermes-gateway-iva -f`
   })}\n\n`);
   res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
   res.end();
