@@ -4,6 +4,7 @@ import { createServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { canvasRoutes } from "./routes/canvasRoutes.js";
 import { mcpRoutes } from "./routes/mcpRoutes.js";
+import { hermesProxy } from "./routes/hermesProxy.js";
 import { CanvasStateService } from "./services/canvasStateService.js";
 import { StorageService } from "./services/storageService.js";
 import { McpServerService } from "./services/mcpServerService.js";
@@ -104,6 +105,7 @@ app.locals.mcpServer = mcpServer;
 
 // Routes
 app.use("/api/canvas", canvasRoutes);
+app.use("/api/hermes", hermesProxy);
 app.use("/", mcpRoutes);
 
 // Health check
