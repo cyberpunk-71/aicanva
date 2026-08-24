@@ -17,7 +17,7 @@ export type NodeStatus = "idle" | "running" | "success" | "error";
 export interface CanvasNode extends Node {
   data: {
     label: string;
-    type: "chat" | "skybridge" | "research" | "code" | "scratchpad";
+    type: "chat" | "skybridge" | "research" | "code" | "scratchpad" | "media";
     status?: NodeStatus;
     content?: string;
     messages?: Array<{ role: string; content: string }>;
@@ -118,6 +118,12 @@ const defaultNodeData: Record<CanvasNode["data"]["type"], CanvasNode["data"]> = 
     label: "Notes",
     type: "scratchpad",
     content: "# Scratchpad\n\nWrite your notes here...",
+  },
+  media: {
+    label: "Media Player",
+    type: "media",
+    mediaType: "video",
+    mediaUrl: "",
   },
 };
 

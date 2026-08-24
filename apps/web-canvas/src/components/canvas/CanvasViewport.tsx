@@ -16,6 +16,7 @@ import { SkybridgeNode } from "../nodes/SkybridgeNode";
 import { ResearchNode } from "../nodes/ResearchNode";
 import { CodePreviewNode } from "../nodes/CodePreviewNode";
 import { ScratchpadNode } from "../nodes/ScratchpadNode";
+import { MediaNode } from "../nodes/MediaNode";
 import { StatusEdge } from "./edges/StatusEdge";
 import { Minimap } from "./Minimap";
 import { CanvasToolbar } from "./CanvasToolbar";
@@ -27,6 +28,7 @@ const nodeTypes: NodeTypes = {
   research: ResearchNode as unknown as NodeTypes["research"],
   code: CodePreviewNode as unknown as NodeTypes["code"],
   scratchpad: ScratchpadNode as unknown as NodeTypes["scratchpad"],
+  media: MediaNode as unknown as NodeTypes["media"],
 };
 
 const edgeTypes: EdgeTypes = {

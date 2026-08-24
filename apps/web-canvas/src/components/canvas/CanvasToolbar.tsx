@@ -1,5 +1,5 @@
 import React from "react";
-import { MessageSquare, Puzzle, GitBranch, Code2, StickyNote, LayoutGrid, Trash2, Download, Upload, Plus } from "lucide-react";
+import { MessageSquare, Puzzle, GitBranch, Code2, StickyNote, LayoutGrid, Trash2, Download, Upload, Plus, Video } from "lucide-react";
 import { useCanvasStore, type CanvasNode } from "../../store/canvasStore";
 
 const nodeTypes: Array<{
@@ -11,6 +11,7 @@ const nodeTypes: Array<{
   { type: "research", label: "Research", icon: <GitBranch size={14} />, gradient: "from-cyan-500 to-teal-600", shadow: "shadow-cyan-500/25" },
   { type: "code", label: "Code", icon: <Code2 size={14} />, gradient: "from-amber-500 to-orange-600", shadow: "shadow-amber-500/25" },
   { type: "scratchpad", label: "Notes", icon: <StickyNote size={14} />, gradient: "from-emerald-500 to-green-600", shadow: "shadow-emerald-500/25" },
+  { type: "media", label: "Media", icon: <Video size={14} />, gradient: "from-pink-500 to-rose-600", shadow: "shadow-pink-500/25" },
 ];
 
 export function CanvasToolbar() {
