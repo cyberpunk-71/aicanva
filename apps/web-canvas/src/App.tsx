@@ -21,7 +21,7 @@ function CanvasApp() {
             // Convert server node format to ReactFlow format
             const nodes = state.nodes.map((n: Record<string, unknown>) => ({
               id: n.id,
-              type: "custom",
+              type: (n.data as Record<string, unknown>)?.type as string || n.type as string || "chat",
               position: n.position,
               data: n.data,
             }));

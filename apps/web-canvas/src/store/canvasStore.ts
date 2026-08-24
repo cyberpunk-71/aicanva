@@ -150,11 +150,13 @@ export const useCanvasStore = create<CanvasState>()(
       addNode: (type, position) => {
         const id = `node-${nanoid(8)}`;
         const pos = getNonOverlappingPosition(get().nodes, position);
+        const nodeType = type || "chat";
+        console.log(`[Canvas] Creating node: id=${id}, type=${nodeType}`);
         const newNode: CanvasNode = {
           id,
-          type: type, // Use actual type, not "custom"
+          type: nodeType,
           position: pos,
-          data: { ...defaultNodeData[type] },
+          data: { ...defaultNodeData[nodeType] },
         };
         set({ nodes: [...get().nodes, newNode] });
         return id;
