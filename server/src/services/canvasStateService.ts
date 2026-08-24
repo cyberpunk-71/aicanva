@@ -60,6 +60,14 @@ export class CanvasStateService {
     return this.nodes.get(id);
   }
 
+  /**
+   * Import a node directly (preserving its ID)
+   */
+  importNode(node: CanvasNode) {
+    this.nodes.set(node.id, node);
+    this.storage.saveNode(node);
+  }
+
   createNode(payload: {
     type?: string;
     data?: Record<string, unknown>;

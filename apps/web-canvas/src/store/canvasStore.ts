@@ -153,7 +153,6 @@ export const useCanvasStore = create<CanvasState>()(
         const id = `node-${nanoid(8)}`;
         const pos = getNonOverlappingPosition(get().nodes, position);
         const nodeType = type || "chat";
-        console.log(`[Canvas] Creating node: id=${id}, type=${nodeType}`);
         const newNode: CanvasNode = {
           id,
           type: nodeType,
@@ -161,6 +160,12 @@ export const useCanvasStore = create<CanvasState>()(
           data: { ...defaultNodeData[nodeType] },
         };
         set({ nodes: [...get().nodes, newNode] });
+        // Sync to server
+        fetch(`${API_URL}/api/canvas/nodes`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(newNode),
+        }).catch(() => {});
         return id;
       },
 
@@ -170,6 +175,12 @@ export const useCanvasStore = create<CanvasState>()(
             n.id === id ? { ...n, data: { ...n.data, ...data } } : n
           ),
         });
+        // Sync to server
+        fetch(`${API_URL}/api/canvas/nodes/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ data }),
+        }).catch(() => {});
       },
 
       deleteNode: (id) => {
@@ -188,6 +199,12 @@ export const useCanvasStore = create<CanvasState>()(
             n.id === id ? { ...n, position } : n
           ),
         });
+        // Sync to server
+        fetch(`${API_URL}/api/canvas/nodes/${id}/position`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ position }),
+        }).catch(() => {});
       },
 
       setEdgeStatus: (edgeId, status) => {

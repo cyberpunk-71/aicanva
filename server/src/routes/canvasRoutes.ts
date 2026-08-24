@@ -68,6 +68,46 @@ canvasRoutes.post("/import", (req: Request, res: Response) => {
   }
 });
 
+// POST /api/canvas/nodes — Create a new node
+canvasRoutes.post("/nodes", (req: Request, res: Response) => {
+  const canvasState: CanvasStateService = req.app.locals.canvasState;
+  const node = req.body;
+
+  if (!node || !node.id) {
+    return res.status(400).json({ error: "Missing node data or id" });
+  }
+
+  // Save node directly with its ID
+  canvasState.importNode(node);
+  res.json({ success: true, id: node.id });
+});
+
+// PATCH /api/canvas/nodes/:id — Update node data
+canvasRoutes.patch("/nodes/:id", (req: Request, res: Response) => {
+  const canvasState: CanvasStateService = req.app.locals.canvasState;
+  const { id } = req.params;
+  const { data } = req.body;
+
+  if (data) {
+    canvasState.updateNode(id, data);
+  }
+
+  res.json({ success: true, id });
+});
+
+// PATCH /api/canvas/nodes/:id/position — Update node position
+canvasRoutes.patch("/nodes/:id/position", (req: Request, res: Response) => {
+  const canvasState: CanvasStateService = req.app.locals.canvasState;
+  const { id } = req.params;
+  const { position } = req.body;
+
+  if (position) {
+    canvasState.updateNodePosition(id, position);
+  }
+
+  res.json({ success: true, id });
+});
+
 // DELETE /api/canvas/nodes/:id — Delete a specific node
 canvasRoutes.delete("/nodes/:id", (req: Request, res: Response) => {
   const canvasState: CanvasStateService = req.app.locals.canvasState;
