@@ -45,7 +45,7 @@ function renderMarkdown(md: string): string {
     .replace(/\n/g, "<br />");
 }
 
-export function ScratchpadNode({ id, data }: NodeProps) {
+export function ScratchpadNode({ id, data }: NodeProps & { data: Record<string, unknown> }) {
   const nodeData = data as CanvasNode["data"];
   const updateNode = useCanvasStore((s) => s.updateNode);
   const deleteNode = useCanvasStore((s) => s.deleteNode);

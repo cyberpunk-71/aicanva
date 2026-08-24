@@ -3,7 +3,7 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { Code2, Play, Copy, Check, X, Terminal } from "lucide-react";
 import { useCanvasStore, type CanvasNode } from "../../store/canvasStore";
 
-export function CodePreviewNode({ id, data }: NodeProps) {
+export function CodePreviewNode({ id, data }: NodeProps & { data: Record<string, unknown> }) {
   const nodeData = data as CanvasNode["data"];
   const updateNode = useCanvasStore((s) => s.updateNode);
   const deleteNode = useCanvasStore((s) => s.deleteNode);
@@ -159,11 +159,7 @@ export function CodePreviewNode({ id, data }: NodeProps) {
           />
         ) : (
           <pre className="w-full h-full p-3 overflow-auto text-xs font-mono text-slate-300 bg-black/20">
-            {output || (
-              <span className="text-slate-600">
-                Click ▶ to run and see output here
-              </span>
-            )}
+            {output ? output : <span className="text-slate-600">Click ▶ to run and see output here</span>}
           </pre>
         )}
       </div>

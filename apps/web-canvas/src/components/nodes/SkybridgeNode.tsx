@@ -4,7 +4,7 @@ import { Puzzle, X, Maximize2, Minimize2, RefreshCw } from "lucide-react";
 import { useCanvasStore, type CanvasNode } from "../../store/canvasStore";
 import { usePostMessageBridge } from "../../hooks/usePostMessageBridge";
 
-export function SkybridgeNode({ id, data }: NodeProps) {
+export function SkybridgeNode({ id, data }: NodeProps & { data: Record<string, unknown> }) {
   const nodeData = data as CanvasNode["data"];
   const updateNode = useCanvasStore((s) => s.updateNode);
   const deleteNode = useCanvasStore((s) => s.deleteNode);

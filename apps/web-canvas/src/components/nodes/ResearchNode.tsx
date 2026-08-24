@@ -125,7 +125,7 @@ const defaultTree: TreeNode[] = [
   },
 ];
 
-export function ResearchNode({ id, data }: NodeProps) {
+export function ResearchNode({ id, data }: NodeProps & { data: Record<string, unknown> }) {
   const nodeData = data as CanvasNode["data"];
   const updateNode = useCanvasStore((s) => s.updateNode);
   const deleteNode = useCanvasStore((s) => s.deleteNode);

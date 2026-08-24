@@ -9,7 +9,7 @@ interface Message {
   toolCalls?: Array<{ name: string; status: "running" | "done" | "error" }>;
 }
 
-export function GenericChatNode({ id, data }: NodeProps) {
+export function GenericChatNode({ id, data }: NodeProps & { data: Record<string, unknown> }) {
   const nodeData = data as CanvasNode["data"];
   const messages = (nodeData.messages as Message[]) || [];
   const status = nodeData.status || "idle";
