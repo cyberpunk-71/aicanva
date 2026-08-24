@@ -61,11 +61,13 @@ pnpm dev:skybridge # Skybridge MCP only
 
 ## Known Blockers & Assumptions
 
-- SQLite database is file-based at `./data/canvas.db` — the `data/` directory is auto-created.
+- Canvas data persists via JSON file at `./data/canvas.json` (pure-JS, no native dependencies).
+- `better-sqlite3` was replaced with JSON file storage due to sandbox native build limitations.
 - Skybridge MCP views are compiled as standalone React bundles; they load in iframes via blob URLs.
 - The `@alpic-ai/skybridge` package is referenced but may need to be replaced with a local mock if not available on npm.
 - WebSocket reconnection logic uses exponential backoff (1s, 2s, 4s, max 10s).
-- Monaco editor in CodePreviewNode uses `@monaco-editor/react` CDN loader.
+- Monaco editor in CodePreviewNode uses a textarea fallback (no external Monaco CDN dependency).
+- Vite `allowedHosts: true` is set for preview environment compatibility.
 
 ---
 

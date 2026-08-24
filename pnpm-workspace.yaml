@@ -1,3 +1,6 @@
 packages:
   - "apps/*"
   - "server"
+allowBuilds:
+  better-sqlite3: true
+  esbuild: true

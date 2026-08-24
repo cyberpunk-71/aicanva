@@ -1,58 +1,73 @@
-import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
 
-const DB_PATH = process.env.DB_PATH || "./data/canvas.db";
+const DATA_PATH = process.env.DB_PATH || "./data/canvas.json";
 
+interface StoredState {
+  nodes: Array<{
+    id: string;
+    type: string;
+    position: { x: number; y: number };
+    data: Record<string, unknown>;
+  }>;
+  edges: Array<{
+    id: string;
+    source: string;
+    target: string;
+    sourceHandle: string | null;
+    targetHandle: string | null;
+    type: string;
+    data: Record<string, unknown>;
+  }>;
+}
+
+/**
+ * JSON file-based persistence for canvas state.
+ * Replaces SQLite for environments without native build support.
+ */
 export class StorageService {
-  private db: Database.Database;
+  private filePath: string;
+  private state: StoredState;
 
   constructor() {
+    this.filePath = path.resolve(DATA_PATH);
+
     // Ensure data directory exists
-    const dir = path.dirname(DB_PATH);
+    const dir = path.dirname(this.filePath);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
 
-    this.db = new Database(DB_PATH);
-    this.db.pragma("journal_mode = WAL");
-    this.initialize();
+    // Load existing data or initialize empty state
+    this.state = this.loadFromDisk();
+    console.log(
+      `[Storage] Loaded ${this.state.nodes.length} nodes and ${this.state.edges.length} edges from ${this.filePath}`
+    );
   }
 
-  private initialize() {
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS nodes (
-        id TEXT PRIMARY KEY,
-        type TEXT NOT NULL,
-        position_x REAL NOT NULL DEFAULT 0,
-        position_y REAL NOT NULL DEFAULT 0,
-        data TEXT NOT NULL DEFAULT '{}',
-        created_at TEXT DEFAULT (datetime('now')),
-        updated_at TEXT DEFAULT (datetime('now'))
-      );
+  private loadFromDisk(): StoredState {
+    try {
+      if (fs.existsSync(this.filePath)) {
+        const raw = fs.readFileSync(this.filePath, "utf-8");
+        return JSON.parse(raw);
+      }
+    } catch (err) {
+      console.error("[Storage] Failed to load data file:", err);
+    }
+    return { nodes: [], edges: [] };
+  }
 
-      CREATE TABLE IF NOT EXISTS edges (
-        id TEXT PRIMARY KEY,
-        source TEXT NOT NULL,
-        target TEXT NOT NULL,
-        source_handle TEXT,
-        target_handle TEXT,
-        type TEXT DEFAULT 'statusEdge',
-        data TEXT DEFAULT '{}',
-        created_at TEXT DEFAULT (datetime('now'))
-      );
-    `);
+  private saveToDisk() {
+    try {
+      fs.writeFileSync(this.filePath, JSON.stringify(this.state, null, 2), "utf-8");
+    } catch (err) {
+      console.error("[Storage] Failed to save data file:", err);
+    }
   }
 
   // Node operations
-  getNodes(): Array<{
-    id: string;
-    type: string;
-    position_x: number;
-    position_y: number;
-    data: string;
-  }> {
-    return this.db.prepare("SELECT * FROM nodes ORDER BY created_at").all() as any[];
+  getNodes(): StoredState["nodes"] {
+    return this.state.nodes;
   }
 
   saveNode(node: {
@@ -61,36 +76,26 @@ export class StorageService {
     position: { x: number; y: number };
     data: Record<string, unknown>;
   }) {
-    this.db
-      .prepare(
-        `INSERT OR REPLACE INTO nodes (id, type, position_x, position_y, data, updated_at)
-         VALUES (?, ?, ?, ?, ?, datetime('now'))`
-      )
-      .run(
-        node.id,
-        node.type,
-        node.position.x,
-        node.position.y,
-        JSON.stringify(node.data)
-      );
+    const existing = this.state.nodes.findIndex((n) => n.id === node.id);
+    if (existing >= 0) {
+      this.state.nodes[existing] = node;
+    } else {
+      this.state.nodes.push(node);
+    }
+    this.saveToDisk();
   }
 
   deleteNode(id: string) {
-    this.db.prepare("DELETE FROM nodes WHERE id = ?").run(id);
-    this.db.prepare("DELETE FROM edges WHERE source = ? OR target = ?").run(id, id);
+    this.state.nodes = this.state.nodes.filter((n) => n.id !== id);
+    this.state.edges = this.state.edges.filter(
+      (e) => e.source !== id && e.target !== id
+    );
+    this.saveToDisk();
   }
 
   // Edge operations
-  getEdges(): Array<{
-    id: string;
-    source: string;
-    target: string;
-    source_handle: string | null;
-    target_handle: string | null;
-    type: string;
-    data: string;
-  }> {
-    return this.db.prepare("SELECT * FROM edges ORDER BY created_at").all() as any[];
+  getEdges(): StoredState["edges"] {
+    return this.state.edges;
   }
 
   saveEdge(edge: {
@@ -102,87 +107,70 @@ export class StorageService {
     type?: string;
     data?: Record<string, unknown>;
   }) {
-    this.db
-      .prepare(
-        `INSERT OR REPLACE INTO edges (id, source, target, source_handle, target_handle, type, data)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`
-      )
-      .run(
-        edge.id,
-        edge.source,
-        edge.target,
-        edge.sourceHandle || null,
-        edge.targetHandle || null,
-        edge.type || "statusEdge",
-        JSON.stringify(edge.data || {})
-      );
+    const existing = this.state.edges.findIndex((e) => e.id === edge.id);
+    const record = {
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      sourceHandle: edge.sourceHandle || null,
+      targetHandle: edge.targetHandle || null,
+      type: edge.type || "statusEdge",
+      data: edge.data || {},
+    };
+    if (existing >= 0) {
+      this.state.edges[existing] = record;
+    } else {
+      this.state.edges.push(record);
+    }
+    this.saveToDisk();
   }
 
   deleteEdge(id: string) {
-    this.db.prepare("DELETE FROM edges WHERE id = ?").run(id);
+    this.state.edges = this.state.edges.filter((e) => e.id !== id);
+    this.saveToDisk();
   }
 
   // Export/Import
-  exportAll(): { nodes: any[]; edges: any[] } {
+  exportAll(): StoredState {
     return {
-      nodes: this.getNodes().map((n) => ({
+      nodes: this.state.nodes.map((n) => ({
         id: n.id,
-        type: "custom",
-        position: { x: n.position_x, y: n.position_y },
-        data: JSON.parse(n.data),
+        type: n.type || "custom",
+        position: n.position,
+        data: n.data,
       })),
-      edges: this.getEdges().map((e) => ({
+      edges: this.state.edges.map((e) => ({
         id: e.id,
         source: e.source,
         target: e.target,
-        sourceHandle: e.source_handle,
-        targetHandle: e.target_handle,
+        sourceHandle: e.sourceHandle,
+        targetHandle: e.targetHandle,
         type: e.type,
-        data: JSON.parse(e.data),
+        data: e.data,
       })),
     };
   }
 
   importAll(data: { nodes: any[]; edges: any[] }) {
-    const insertNode = this.db.prepare(
-      `INSERT OR REPLACE INTO nodes (id, type, position_x, position_y, data) VALUES (?, ?, ?, ?, ?)`
-    );
-    const insertEdge = this.db.prepare(
-      `INSERT OR REPLACE INTO edges (id, source, target, source_handle, target_handle, type, data) VALUES (?, ?, ?, ?, ?, ?, ?)`
-    );
-
-    const transaction = this.db.transaction(() => {
-      // Clear existing data
-      this.db.prepare("DELETE FROM nodes").run();
-      this.db.prepare("DELETE FROM edges").run();
-
-      for (const node of data.nodes) {
-        insertNode.run(
-          node.id,
-          node.type || "custom",
-          node.position?.x || 0,
-          node.position?.y || 0,
-          JSON.stringify(node.data || {})
-        );
-      }
-
-      for (const edge of data.edges) {
-        insertEdge.run(
-          edge.id,
-          edge.source,
-          edge.target,
-          edge.sourceHandle || null,
-          edge.targetHandle || null,
-          edge.type || "statusEdge",
-          JSON.stringify(edge.data || {})
-        );
-      }
-    });
-
-    transaction();
+    this.state.nodes = data.nodes.map((n) => ({
+      id: n.id,
+      type: n.type || "custom",
+      position: n.position || { x: 0, y: 0 },
+      data: n.data || {},
+    }));
+    this.state.edges = data.edges.map((e) => ({
+      id: e.id,
+      source: e.source,
+      target: e.target,
+      sourceHandle: e.sourceHandle || null,
+      targetHandle: e.targetHandle || null,
+      type: e.type || "statusEdge",
+      data: e.data || {},
+    }));
+    this.saveToDisk();
   }
 
   close() {
-    this.db.close();
+    this.saveToDisk();
   }
 }

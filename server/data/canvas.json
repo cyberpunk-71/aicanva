@@ -1,0 +1,17 @@
+{
+  "nodes": [
+    {
+      "id": "node-F_vGU7Vq",
+      "type": "chat",
+      "position": {
+        "x": 100,
+        "y": 100
+      },
+      "data": {
+        "label": "Test Chat Agent",
+        "type": "chat"
+      }
+    }
+  ],
+  "edges": []
+}
