@@ -1,12 +1,11 @@
 import { Router, Request, Response } from "express";
 import { execSync } from "child_process";
 
-const HERMES_API = process.env.HERMES_API_BASE || "http://localhost:8080/v1";
-
 export const hermesProxy = Router();
 
 /**
- * POST /api/hermes/chat — Send a message to Hermes
+ * POST /api/hermes/chat — Send a message to Hermes via CLI
+ * Hermes Web UI at :8080 requires auth, so we use the CLI directly.
  */
 hermesProxy.post("/chat", async (req: Request, res: Response) => {
   const { message, context, node_id } = req.body;
@@ -20,95 +19,32 @@ hermesProxy.post("/chat", async (req: Request, res: Response) => {
   res.setHeader("Connection", "keep-alive");
   res.setHeader("X-Accel-Buffering", "no");
 
-  // Try multiple endpoint formats
-  const endpoints = [
-    `${HERMES_API}/chat/completions`,
-    `${HERMES_API}/chat`,
-    `${HERMES_API}/completions`,
-    `${HERMES_API.replace('/v1', '')}/chat/completions`,
-    `${HERMES_API.replace('/v1', '')}/chat`,
-  ];
-
-  let connected = false;
-
-  for (const endpoint of endpoints) {
-    try {
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [
-            ...(context ? [{ role: "system", content: context }] : []),
-            { role: "user", content: message },
-          ],
-          stream: true,
-          model: "hermes",
-        }),
-        signal: AbortSignal.timeout(10000),
-      });
-
-      if (response.ok) {
-        connected = true;
-        const reader = response.body?.getReader();
-        if (reader) {
-          const decoder = new TextDecoder();
-          let buffer = "";
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split("\n");
-            buffer = lines.pop() || "";
-            for (const line of lines) {
-              if (line.startsWith("data: ")) {
-                const data = line.slice(6).trim();
-                if (data === "[DONE]") {
-                  res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
-                  res.end();
-                  return;
-                }
-                try {
-                  const parsed = JSON.parse(data);
-                  const content = parsed.choices?.[0]?.delta?.content || parsed.content || parsed.text;
-                  if (content) {
-                    res.write(`data: ${JSON.stringify({ type: "chunk", content })}\n\n`);
-                  }
-                } catch {}
-              }
-            }
-          }
-          res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
-          res.end();
-          return;
-        }
-      }
-    } catch (e) {
-      // Try next endpoint
-    }
-  }
-
-  // Method 2: Try Hermes CLI
   try {
-    const escapedMsg = message.replace(/"/g, '\\"').replace(/\n/g, "\\n");
+    // Use Hermes CLI with -z flag for prompt
+    const escapedMsg = message.replace(/'/g, "'\\''");
+    const contextPrefix = context ? `[Canvas Context: ${context.substring(0, 200)}]\n\n` : "";
+    const fullPrompt = contextPrefix + escapedMsg;
+
     const result = execSync(
-      `sudo -u hermes HERMES_HOME=/home/hermes/.hermes/profiles/iva /home/hermes/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main --profile iva chat "${escapedMsg}" 2>&1`,
-      { timeout: 120000, encoding: "utf-8", maxBuffer: 1024 * 1024 * 5 }
+      `sudo -u hermes HERMES_HOME=/home/hermes/.hermes/profiles/iva /home/hermes/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main -z '${fullPrompt}' 2>&1`,
+      { timeout: 120000, encoding: "utf-8", maxBuffer: 1024 * 1024 * 10 }
     );
+
     res.write(`data: ${JSON.stringify({ type: "message", content: result.trim() })}\n\n`);
     res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
     res.end();
-    return;
-  } catch (cliErr) {
-    // Fall through to error
-  }
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : "Unknown error";
+    // Extract useful output from stderr if available
+    const output = (err as any)?.stdout || (err as any)?.stderr || errMsg;
 
-  // All methods failed
-  res.write(`data: ${JSON.stringify({
-    type: "error",
-    content: `Cannot reach Hermes. Tried ${endpoints.length} API endpoints and CLI.\n\nTo fix:\n1. Check: sudo systemctl status hermes-gateway-iva\n2. Restart: sudo systemctl restart hermes-gateway-iva\n3. Logs: sudo journalctl -u hermes-gateway-iva -f`
-  })}\n\n`);
-  res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
-  res.end();
+    res.write(`data: ${JSON.stringify({
+      type: "error",
+      content: `Hermes CLI error:\n${output.substring(0, 500)}\n\nTry running manually:\nsudo -u hermes HERMES_HOME=/home/hermes/.hermes/profiles/iva /home/hermes/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main -z "hello"`
+    })}\n\n`);
+    res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
+    res.end();
+  }
 });
 
 /**
@@ -116,14 +52,6 @@ hermesProxy.post("/chat", async (req: Request, res: Response) => {
  */
 hermesProxy.get("/status", async (_req: Request, res: Response) => {
   const results: Record<string, unknown> = {};
-
-  // Check HTTP API
-  try {
-    const r = await fetch(`${HERMES_API}/models`, { signal: AbortSignal.timeout(3000) });
-    results.http_api = { ok: true, status: r.status, url: HERMES_API };
-  } catch (e) {
-    results.http_api = { ok: false, url: HERMES_API, error: "Connection refused" };
-  }
 
   // Check systemd service
   try {
@@ -135,10 +63,29 @@ hermesProxy.get("/status", async (_req: Request, res: Response) => {
 
   // Check process
   try {
-    const ps = execSync("pgrep -f hermes || echo none", { encoding: "utf-8" }).trim();
+    const ps = execSync("pgrep -f 'hermes.*gateway' || echo none", { encoding: "utf-8" }).trim();
     results.process = { running: ps !== "none", pids: ps };
   } catch {
     results.process = { running: false };
+  }
+
+  // Check Web UI
+  try {
+    const r = await fetch("http://localhost:8080/", { signal: AbortSignal.timeout(3000), redirect: "manual" });
+    results.web_ui = { ok: true, status: r.status, note: "Requires browser login" };
+  } catch {
+    results.web_ui = { ok: false };
+  }
+
+  // Test CLI
+  try {
+    const test = execSync(
+      `sudo -u hermes HERMES_HOME=/home/hermes/.hermes/profiles/iva /home/hermes/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main status 2>&1 | head -5`,
+      { timeout: 10000, encoding: "utf-8" }
+    );
+    results.cli = { ok: true, output: test.trim() };
+  } catch (e) {
+    results.cli = { ok: false, error: "CLI failed" };
   }
 
   res.json(results);
