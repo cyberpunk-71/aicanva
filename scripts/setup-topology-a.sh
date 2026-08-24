@@ -121,7 +121,7 @@ log_info "Step 4/6: Installing PM2 process manager..."
 if command -v pm2 &>/dev/null; then
   log_ok "PM2 $(pm2 --version) is already installed"
 else
-  npm install -g pm2
+  sudo npm install -g pm2
   log_ok "PM2 installed: $(pm2 --version)"
 fi
 
