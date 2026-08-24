@@ -69,12 +69,16 @@ Always mention the exact filename when you create a file.` : '';
       nodeSessions.set(node_id, sessionMatch[1]);
     }
 
-    // Auto-detect HTML file creation — multiple patterns
+    // Auto-detect HTML file creation — very broad patterns
     const htmlPatterns = [
-      /(?:created?|saved?|wrote?|generated?|built?|wrote)\s+(?:a\s+)?(?:new\s+)?(?:file|html|report|dashboard|chart|visualization)[:\s]+(?:`)?(?:\/home\/hermes\/workspace\/)?([^\s\n`]+\.(?:html|htm))(?:`)?/i,
-      /(?:File|Output|Report|Dashboard|HTML)[:\s]+(?:`)?(?:\/home\/hermes\/workspace\/)?([^\s\n`]+\.(?:html|htm))(?:`)?/i,
-      /(?:`)?\/home\/hermes\/workspace\/([^\s\n`]+\.(?:html|htm))(?:`)?/i,
-      /([a-zA-Z0-9_-]+\.(?:html|htm))/i,
+      // "Created: /home/hermes/workspace/file.html"
+      /(?:Created|Saved|Wrote|Generated|Built|Output|File|Report)[:\s]+(?:`)?(\/home\/hermes\/workspace\/[^\s\n`]+\.html)(?:`)?/i,
+      // "/home/hermes/workspace/file.html" anywhere in text
+      /(\/home\/hermes\/workspace\/[^\s\n`]+\.html)/i,
+      // "file.html" with context
+      /(?:file|html|report|dashboard|chart)[:\s]+(?:`)?([a-zA-Z0-9_-]+\.html)(?:`)?/i,
+      // Any .html filename at end of line
+      /([a-zA-Z0-9_-]+\.html)\s*$/im,
     ];
 
     let detectedFile = null;
@@ -135,6 +139,51 @@ Always mention the exact filename when you create a file.` : '';
     })}\n\n`);
     res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
     res.end();
+  }
+});
+
+/**
+ * POST /api/hermes/create-card — Manually create a card from an HTML file
+ */
+hermesProxy.post("/create-card", (req: Request, res: Response) => {
+  const { filepath, filename } = req.body;
+
+  const targetPath = filepath || path.join(HERMES_WORKSPACE, filename);
+
+  if (!fs.existsSync(targetPath)) {
+    return res.status(404).json({ error: `File not found: ${targetPath}` });
+  }
+
+  try {
+    const html = fs.readFileSync(targetPath, "utf-8");
+    res.json({
+      ok: true,
+      filename: path.basename(targetPath),
+      html: html.substring(0, 200000),
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to read file" });
+  }
+});
+
+/**
+ * GET /api/hermes/files — List recent HTML files in Hermes workspace
+ */
+hermesProxy.get("/files", (_req: Request, res: Response) => {
+  try {
+    const files = fs.readdirSync(HERMES_WORKSPACE)
+      .filter(f => f.endsWith('.html') || f.endsWith('.htm'))
+      .map(f => ({
+        name: f,
+        path: path.join(HERMES_WORKSPACE, f),
+        size: fs.statSync(path.join(HERMES_WORKSPACE, f)).size,
+        modified: fs.statSync(path.join(HERMES_WORKSPACE, f)).mtime,
+      }))
+      .sort((a, b) => b.modified.getTime() - a.modified.getTime())
+      .slice(0, 20);
+    res.json({ files });
+  } catch {
+    res.json({ files: [] });
   }
 });
 

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { Send, Bot, User, Wrench, Loader2, X, Maximize2, Minimize2, Copy, Check, Zap, RotateCcw } from "lucide-react";
+import { Send, Bot, User, Wrench, Loader2, X, Maximize2, Minimize2, Copy, Check, Zap, RotateCcw, FileCode } from "lucide-react";
 import { useCanvasStore, type CanvasNode } from "../../store/canvasStore";
 
 const API_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:3001`;
@@ -189,6 +189,32 @@ export function GenericChatNode({ id, data }: NodeProps & { data: Record<string,
             </div>
           </div>
           <div className="flex items-center gap-1">
+            <button onClick={async () => {
+              // List recent HTML files and let user pick
+              try {
+                const res = await fetch(`${API_URL}/api/hermes/files`);
+                const data = await res.json();
+                if (data.files && data.files.length > 0) {
+                  const latest = data.files[0];
+                  const cardRes = await fetch(`${API_URL}/api/hermes/create-card`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ filepath: latest.path }),
+                  });
+                  const cardData = await cardRes.json();
+                  if (cardData.ok) {
+                    const store = useCanvasStore.getState();
+                    const myNode = store.nodes.find(n => n.id === id);
+                    const pos = myNode ? { x: myNode.position.x + 450, y: myNode.position.y } : undefined;
+                    const cardId = store.addNode("skybridge", pos);
+                    store.updateNode(cardId, { label: cardData.filename, widgetHtml: cardData.html });
+                    store.onConnect({ source: id, target: cardId, sourceHandle: null, targetHandle: null });
+                  }
+                }
+              } catch {}
+            }} className="p-1.5 rounded-lg text-slate-600 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all" title="Load Latest HTML">
+              <FileCode size={13} />
+            </button>
             <button onClick={() => {
               fetch(`${API_URL}/api/hermes/new-session`, {
                 method: "POST",
