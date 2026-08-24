@@ -1,0 +1,109 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --canvas-bg: #0a0a0f;
+  --canvas-grid: #1a1a2e;
+  --canvas-node: #12121e;
+  --canvas-border: #2a2a3e;
+  --canvas-accent: #6366f1;
+  --canvas-success: #22c55e;
+  --canvas-error: #ef4444;
+  --canvas-running: #3b82f6;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--canvas-bg);
+}
+
+/* ReactFlow overrides */
+.react-flow__background {
+  background-color: var(--canvas-bg) !important;
+}
+
+.react-flow__minimap {
+  background-color: rgba(10, 10, 15, 0.8) !important;
+  border: 1px solid var(--canvas-border) !important;
+  border-radius: 8px !important;
+}
+
+.react-flow__controls {
+  background: rgba(18, 18, 30, 0.9) !important;
+  border: 1px solid var(--canvas-border) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+.react-flow__controls-button {
+  background: transparent !important;
+  border-bottom: 1px solid var(--canvas-border) !important;
+  color: #94a3b8 !important;
+  fill: #94a3b8 !important;
+}
+
+.react-flow__controls-button:hover {
+  background: rgba(99, 102, 241, 0.1) !important;
+  color: var(--canvas-accent) !important;
+  fill: var(--canvas-accent) !important;
+}
+
+/* Edge animations */
+@keyframes edgeFlow {
+  0% {
+    stroke-dashoffset: 24;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animated-edge {
+  stroke-dasharray: 8 4;
+  animation: edgeFlow 1s linear infinite;
+}
+
+.animated-edge.running {
+  stroke: var(--canvas-running);
+  filter: drop-shadow(0 0 4px var(--canvas-running));
+}
+
+.animated-edge.success {
+  stroke: var(--canvas-success);
+  filter: drop-shadow(0 0 4px var(--canvas-success));
+}
+
+.animated-edge.error {
+  stroke: var(--canvas-error);
+  filter: drop-shadow(0 0 4px var(--canvas-error));
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--canvas-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3a3a5e;
+}

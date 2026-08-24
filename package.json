@@ -1,0 +1,19 @@
+{
+  "name": "canvas-core-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Infinite 2D Canvas Workspace with Skybridge MCP Apps and Agent-Agnostic Gateway",
+  "scripts": {
+    "dev": "pnpm --filter './apps/*' --filter './server' dev",
+    "dev:canvas": "pnpm --filter web-canvas dev",
+    "dev:server": "pnpm --filter gateway-server dev",
+    "dev:skybridge": "pnpm --filter skybridge-mcp dev",
+    "build": "pnpm --filter './apps/*' --filter './server' build",
+    "lint": "pnpm --filter './apps/*' --filter './server' lint",
+    "clean": "pnpm --filter './apps/*' --filter './server' clean"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}
