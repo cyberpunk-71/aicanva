@@ -93,7 +93,7 @@ export function CodePreviewNode({ id, data }: NodeProps & { data: Record<string,
             {nodeData.label || "Code Preview"}
           </span>
           <span className="text-[10px] px-1.5 py-0.5 bg-amber-500/20 text-amber-300 rounded">
-            {nodeData.language || "javascript"}
+            {String(nodeData.language || "javascript")}
           </span>
         </div>
         <div className="flex items-center gap-1">
