@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { Code2, Play, Copy, Check, X, Terminal, Braces } from "lucide-react";
+import { Code2, Play, Copy, Check, X, Terminal, Braces, Maximize2, Minimize2 } from "lucide-react";
 import { useCanvasStore, type CanvasNode } from "../../store/canvasStore";
 
 export function CodePreviewNode({ id, data }: NodeProps & { data: Record<string, unknown> }) {
@@ -13,6 +13,7 @@ export function CodePreviewNode({ id, data }: NodeProps & { data: Record<string,
   const [isRunning, setIsRunning] = useState(false);
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<"code" | "output">("code");
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const handleRun = useCallback(() => {
     setIsRunning(true); setActiveTab("output"); setOutput("");
@@ -32,15 +33,15 @@ export function CodePreviewNode({ id, data }: NodeProps & { data: Record<string,
   const handleCopy = () => { navigator.clipboard.writeText(code); setCopied(true); setTimeout(() => setCopied(false), 2000); };
 
   return (
-    <div className="w-96 glass-card rounded-2xl overflow-hidden node-code animate-fade-in">
-      <Handle type="target" position={Position.Top} className="!bg-amber-500 !border-amber-400" />
+    <div className={`glass-card rounded-2xl overflow-hidden node-code animate-fade-in transition-all duration-300 ${isExpanded ? "w-[700px] h-[500px]" : "w-[440px] min-h-[350px]"}`}>
+      <Handle type="target" position={Position.Top} className="!bg-amber-500 !border-amber-400 !w-3 !h-3" />
 
       <div className="relative px-4 py-3 border-b border-white/5">
         <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 via-transparent to-orange-500/5" />
         <div className="relative flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
-              <Braces size={14} className="text-white" />
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
+              <Braces size={16} className="text-white" />
             </div>
             <div>
               <span className="text-sm font-semibold text-white/90 block">{nodeData.label || "Code Preview"}</span>
@@ -48,11 +49,14 @@ export function CodePreviewNode({ id, data }: NodeProps & { data: Record<string,
             </div>
           </div>
           <div className="flex items-center gap-1">
-            <button onClick={handleCopy} className="p-1.5 rounded-lg text-slate-600 hover:text-amber-400 hover:bg-amber-500/10 transition-all" title="Copy">
+            <button onClick={handleCopy} className="p-1.5 rounded-lg text-slate-600 hover:text-amber-400 hover:bg-amber-500/10 transition-all">
               {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
             </button>
-            <button onClick={handleRun} disabled={isRunning} className="p-1.5 rounded-lg text-slate-600 hover:text-emerald-400 hover:bg-emerald-500/10 disabled:opacity-30 transition-all" title="Run">
+            <button onClick={handleRun} disabled={isRunning} className="p-1.5 rounded-lg text-slate-600 hover:text-emerald-400 hover:bg-emerald-500/10 disabled:opacity-30 transition-all">
               <Play size={12} />
+            </button>
+            <button onClick={() => setIsExpanded(!isExpanded)} className="p-1.5 rounded-lg text-slate-600 hover:text-amber-400 hover:bg-amber-500/10 transition-all">
+              {isExpanded ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
             </button>
             <button onClick={() => deleteNode(id)} className="p-1.5 rounded-lg text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-all">
               <X size={12} />
@@ -72,19 +76,19 @@ export function CodePreviewNode({ id, data }: NodeProps & { data: Record<string,
         ))}
       </div>
 
-      <div className="h-48">
+      <div style={{ height: isExpanded ? "calc(100% - 110px)" : "calc(100% - 110px)", minHeight: "200px" }}>
         {activeTab === "code" ? (
           <textarea value={code} onChange={(e) => { setCode(e.target.value); updateNode(id, { code: e.target.value }); }}
-            className="w-full h-full p-3 bg-transparent text-[11px] font-mono text-amber-100/70 resize-none focus:outline-none placeholder-slate-700 leading-relaxed"
+            className="w-full h-full p-4 bg-transparent text-[12px] font-mono text-amber-100/70 resize-none focus:outline-none placeholder-slate-700 leading-relaxed"
             placeholder="Write your code here..." spellCheck={false} />
         ) : (
-          <pre className="w-full h-full p-3 overflow-auto text-[11px] font-mono text-slate-300 bg-black/20 leading-relaxed">
+          <pre className="w-full h-full p-4 overflow-auto text-[12px] font-mono text-slate-300 bg-black/20 leading-relaxed whitespace-pre-wrap">
             {output ? output : <span className="text-slate-700">Click ▶ to run and see output here</span>}
           </pre>
         )}
       </div>
 
-      <Handle type="source" position={Position.Bottom} className="!bg-amber-500 !border-amber-400" />
+      <Handle type="source" position={Position.Bottom} className="!bg-amber-500 !border-amber-400 !w-3 !h-3" />
     </div>
   );
 }

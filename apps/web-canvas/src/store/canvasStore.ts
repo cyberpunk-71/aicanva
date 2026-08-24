@@ -51,9 +51,9 @@ interface CanvasState {
   getNonOverlappingPosition: (preferred?: { x: number; y: number }) => { x: number; y: number };
 }
 
-const NODE_WIDTH = 320;
-const NODE_HEIGHT = 200;
-const GRID_SIZE = 40;
+const NODE_WIDTH = 400;
+const NODE_HEIGHT = 350;
+const GRID_SIZE = 60;
 
 function getNonOverlappingPosition(
   existingNodes: CanvasNode[],
