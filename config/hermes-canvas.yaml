@@ -1,0 +1,37 @@
+# ============================================================
+# Canvas Workspace MCP Configuration for Hermes/Eva
+# Generated: 2026-08-24T10:09:04Z
+# Topology: A (All-on-VPS)
+# ============================================================
+#
+# USAGE: Paste the mcp_servers section below into your
+# Hermes config.yaml file, or save this file and reference it.
+#
+# Then restart Hermes to pick up the new MCP servers.
+# ============================================================
+
+mcp_servers:
+  # Canvas Gateway — HTTP MCP endpoint for canvas manipulation tools
+  # Tools: get_canvas_state, create_canvas_card, update_canvas_card, link_canvas_cards
+  canvas_workspace:
+    url: "http://localhost:3001/mcp"
+    transport: "http"
+
+  # Skybridge MCP — stdio-based MCP server for full-stack tools
+  # Tools: research_tree, interactive_checklist, time_slot_picker
+  skybridge_tools:
+    command: "node"
+    args: ["/home/user/aicanva/apps/skybridge-mcp/dist/server/index.js"]
+
+# Canvas Gateway direct endpoints (for custom integrations)
+canvas_gateway:
+  base_url: "http://localhost:3001"
+  websocket_url: "ws://localhost:3001/ws"
+  mcp_http_url: "http://localhost:3001/mcp"
+  mcp_sse_url: "http://localhost:3001/sse"
+  api_url: "http://localhost:3001/api/canvas"
+
+# Remote access (from your laptop browser)
+remote_access:
+  frontend_url: "http://169.254.0.21:5173"
+  gateway_url: "http://169.254.0.21:3001"

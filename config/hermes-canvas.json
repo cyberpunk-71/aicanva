@@ -1,0 +1,28 @@
+{
+  "mcp_servers": {
+    "canvas_workspace": {
+      "name": "canvas_workspace",
+      "transport": "http",
+      "url": "http://localhost:3001/mcp",
+      "description": "Canvas manipulation tools via HTTP MCP"
+    },
+    "skybridge_tools": {
+      "name": "skybridge_tools",
+      "transport": "stdio",
+      "command": "node",
+      "args": ["/home/user/aicanva/apps/skybridge-mcp/dist/server/index.js"],
+      "description": "Skybridge full-stack MCP tools (research, checklists, booking)"
+    }
+  },
+  "canvas_gateway": {
+    "base_url": "http://localhost:3001",
+    "websocket_url": "ws://localhost:3001/ws",
+    "mcp_http_url": "http://localhost:3001/mcp",
+    "mcp_sse_url": "http://localhost:3001/sse",
+    "api_url": "http://localhost:3001/api/canvas"
+  },
+  "remote_access": {
+    "frontend_url": "http://169.254.0.21:5173",
+    "gateway_url": "http://169.254.0.21:3001"
+  }
+}
