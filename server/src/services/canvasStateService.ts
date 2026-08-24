@@ -136,6 +136,45 @@ export class CanvasStateService {
     this.storage.deleteEdge(id);
   }
 
+  /**
+   * Find a non-overlapping position adjacent to a parent node.
+   * Tries right, below-right, below, left in order.
+   */
+  getAdjacentPosition(
+    parentPos: { x: number; y: number }
+  ): { x: number; y: number } {
+    const gap = GRID_SIZE * 2;
+    const candidates = [
+      { x: parentPos.x + NODE_WIDTH + gap, y: parentPos.y }, // right
+      { x: parentPos.x + NODE_WIDTH + gap, y: parentPos.y + NODE_HEIGHT + gap }, // below-right
+      { x: parentPos.x, y: parentPos.y + NODE_HEIGHT + gap }, // below
+      { x: parentPos.x - NODE_WIDTH - gap, y: parentPos.y }, // left
+      { x: parentPos.x - NODE_WIDTH - gap, y: parentPos.y + NODE_HEIGHT + gap }, // below-left
+    ];
+
+    const occupied = Array.from(this.nodes.values()).map((n) => ({
+      x: n.position.x,
+      y: n.position.y,
+    }));
+
+    for (const pos of candidates) {
+      const overlaps = occupied.some(
+        (o) =>
+          pos.x < o.x + NODE_WIDTH + GRID_SIZE &&
+          pos.x + NODE_WIDTH + GRID_SIZE > o.x &&
+          pos.y < o.y + NODE_HEIGHT + GRID_SIZE &&
+          pos.y + NODE_HEIGHT + GRID_SIZE > o.y
+      );
+      if (!overlaps) return pos;
+    }
+
+    // Fallback: use standard non-overlapping placement
+    return this.getNonOverlappingPosition({
+      x: parentPos.x + NODE_WIDTH + gap,
+      y: parentPos.y,
+    });
+  }
+
   private getNonOverlappingPosition(
     preferred?: { x: number; y: number }
   ): { x: number; y: number } {

@@ -35,7 +35,8 @@ export class McpServerService {
       },
       {
         name: "create_canvas_card",
-        description: "Creates a new card/node on the canvas",
+        description:
+          "Creates a new card/node on the canvas. Supports auto-linking to a parent card via link_to, and smart placement near the parent.",
         inputSchema: {
           type: "object" as const,
           properties: {
@@ -50,7 +51,8 @@ export class McpServerService {
             },
             data: {
               type: "object",
-              description: "Additional data for the card",
+              description:
+                "Arbitrary data payload for the card (content, code, tree, messages, etc.)",
             },
             position: {
               type: "object",
@@ -58,7 +60,19 @@ export class McpServerService {
                 x: { type: "number" },
                 y: { type: "number" },
               },
-              description: "Position on the canvas (auto-placed if omitted)",
+              description:
+                "Position on the canvas. If omitted and link_to is provided, auto-placed next to parent. Otherwise uses non-overlapping placement.",
+            },
+            link_to: {
+              type: "string",
+              description:
+                "Optional parent node ID. If provided, an edge is auto-created from parent to this card, and the card is placed adjacent to the parent.",
+            },
+            edge_status: {
+              type: "string",
+              enum: ["idle", "running", "success", "error"],
+              description:
+                "Status for the auto-created edge (default: idle)",
             },
           },
           required: ["type"],
@@ -76,7 +90,7 @@ export class McpServerService {
             },
             data: {
               type: "object",
-              description: "Data fields to update",
+              description: "Data fields to merge into the node",
             },
           },
           required: ["id", "data"],
@@ -116,18 +130,47 @@ export class McpServerService {
         }
 
         case "create_canvas_card": {
-          const { type, label, data, position } = call.arguments as {
-            type: string;
-            label?: string;
-            data?: Record<string, unknown>;
-            position?: { x: number; y: number };
-          };
+          const { type, label, data, position, link_to, edge_status } =
+            call.arguments as {
+              type: string;
+              label?: string;
+              data?: Record<string, unknown>;
+              position?: { x: number; y: number };
+              link_to?: string;
+              edge_status?: "idle" | "running" | "success" | "error";
+            };
+
+          // Smart placement: if link_to is provided, place next to parent
+          let finalPosition = position;
+          if (!finalPosition && link_to) {
+            const parentNode = this.canvasState.getNode(link_to);
+            if (parentNode) {
+              finalPosition = this.canvasState.getAdjacentPosition(
+                parentNode.position
+              );
+            }
+          }
+
           const node = this.canvasState.createNode({
             type,
             data: { label: label || `${type} Node`, type, ...data },
-            position,
+            position: finalPosition,
           });
-          return { success: true, data: node };
+
+          // Auto-link to parent if link_to provided
+          let edge = null;
+          if (link_to) {
+            edge = this.canvasState.createEdge({
+              source: link_to,
+              target: node.id,
+              data: { status: edge_status || "idle" },
+            });
+          }
+
+          return {
+            success: true,
+            data: { node, edge },
+          };
         }
 
         case "update_canvas_card": {

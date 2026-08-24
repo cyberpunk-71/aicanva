@@ -77,7 +77,11 @@ mcpRoutes.post("/mcp", async (req: Request, res: Response) => {
 
         // Broadcast to WebSocket clients on canvas changes
         if (toolName === "create_canvas_card" && result.success) {
-          broadcast({ type: "canvas:create-node", payload: result.data });
+          const { node, edge } = result.data as { node: unknown; edge: unknown };
+          broadcast({ type: "canvas:create-node", payload: node });
+          if (edge) {
+            broadcast({ type: "canvas:create-edge", payload: edge });
+          }
         } else if (toolName === "update_canvas_card" && result.success) {
           broadcast({
             type: "canvas:update-node",
@@ -141,7 +145,11 @@ mcpRoutes.post("/mcp", async (req: Request, res: Response) => {
 
     // If a node was created, broadcast it to WebSocket clients
     if (tool === "create_canvas_card" && result.success) {
-      broadcast({ type: "canvas:create-node", payload: result.data });
+      const { node, edge } = result.data as { node: unknown; edge: unknown };
+      broadcast({ type: "canvas:create-node", payload: node });
+      if (edge) {
+        broadcast({ type: "canvas:create-edge", payload: edge });
+      }
     } else if (tool === "update_canvas_card" && result.success) {
       broadcast({
         type: "canvas:update-node",
