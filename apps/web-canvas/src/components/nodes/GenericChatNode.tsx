@@ -164,16 +164,29 @@ export function GenericChatNode({ id, data }: NodeProps & { data: Record<string,
                 updateNode(id, { messages: updated });
               } else if (msg.type === "auto_card") {
                 // Hermes created an HTML file — auto-create a skybridge card
+                // Check if card with same filename already exists
                 const store = useCanvasStore.getState();
-                const myNode = store.nodes.find(n => n.id === id);
-                const pos = myNode ? { x: myNode.position.x + 450, y: myNode.position.y } : undefined;
-                const cardId = store.addNode("skybridge", pos);
-                store.updateNode(cardId, {
-                  label: msg.filename || "Hermes Output",
-                  widgetHtml: msg.html,
-                });
-                // Auto-link
-                store.onConnect({ source: id, target: cardId, sourceHandle: null, targetHandle: null });
+                const existingCard = store.nodes.find(n =>
+                  n.data?.label === msg.filename || n.data?.label === msg.filename?.replace('.html', '')
+                );
+
+                if (existingCard) {
+                  // Update existing card instead of creating duplicate
+                  store.updateNode(existingCard.id, {
+                    widgetHtml: msg.html,
+                  });
+                } else {
+                  // Create new card
+                  const myNode = store.nodes.find(n => n.id === id);
+                  const pos = myNode ? { x: myNode.position.x + 450, y: myNode.position.y } : undefined;
+                  const cardId = store.addNode("skybridge", pos);
+                  store.updateNode(cardId, {
+                    label: msg.filename || "Hermes Output",
+                    widgetHtml: msg.html,
+                  });
+                  // Auto-link
+                  store.onConnect({ source: id, target: cardId, sourceHandle: null, targetHandle: null });
+                }
               } else if (msg.type === "error") {
                 fullContent = msg.content || "Error connecting to Hermes";
                 const currentMessages = useCanvasStore.getState().nodes.find(n => n.id === id)?.data.messages as Message[] || [];

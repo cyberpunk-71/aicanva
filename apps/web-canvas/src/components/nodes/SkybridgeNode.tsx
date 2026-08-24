@@ -93,8 +93,9 @@ export function SkybridgeNode({ id, data }: NodeProps & { data: Record<string, u
             ref={iframeRef}
             src={iframeSrc}
             className="w-full h-full border-0 rounded-b-2xl"
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads allow-top-navigation"
             title={nodeData.label as string}
+            allow="clipboard-read; clipboard-write"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-slate-600 text-xs">
