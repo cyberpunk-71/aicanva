@@ -1,8 +1,9 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { X, Maximize2, Minimize2, RefreshCw, Globe, Send, Edit3, Target, Pencil } from "lucide-react";
+import { X, Maximize2, Minimize2, RefreshCw, Globe, Send, Edit3, Target, Pencil, GripVertical } from "lucide-react";
 import { useCanvasStore, type CanvasNode } from "../../store/canvasStore";
 import { usePostMessageBridge } from "../../hooks/usePostMessageBridge";
+import { useNodeResize } from "../../hooks/useNodeResize";
 
 const API_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:3001`;
 
@@ -36,6 +37,7 @@ export function SkybridgeNode({ id, data }: NodeProps & { data: Record<string, u
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawPath, setDrawPath] = useState<string>("");
   const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null);
+  const { width: cardWidth, height: cardHeight, isResizing, handleResizeStart } = useNodeResize(400, 300, 300, 200);
 
   const handlers = {
     updateData: (params: unknown) => { updateNode(id, { ...(params as Record<string, unknown>) }); return { ok: true }; },
@@ -88,6 +90,7 @@ export function SkybridgeNode({ id, data }: NodeProps & { data: Record<string, u
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (!isDrawing || annotationMode !== "lasso") return;
     e.preventDefault();
+    e.stopPropagation();
 
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -99,6 +102,7 @@ export function SkybridgeNode({ id, data }: NodeProps & { data: Record<string, u
   const handleMouseUp = useCallback((e: React.MouseEvent) => {
     if (!isDrawing || annotationMode !== "lasso" || !drawStart) return;
     e.preventDefault();
+    e.stopPropagation();
 
     const rect = e.currentTarget.getBoundingClientRect();
     const endX = e.clientX - rect.left;
@@ -209,7 +213,8 @@ export function SkybridgeNode({ id, data }: NodeProps & { data: Record<string, u
   };
 
   return (
-    <div className={`glass-card rounded-2xl overflow-hidden node-skybridge animate-fade-in transition-all duration-300 ${isExpanded ? "w-[700px] h-[600px]" : "w-[400px] min-h-[300px]"}`}>
+    <div className={`glass-card rounded-2xl overflow-hidden node-skybridge animate-fade-in ${isResizing ? '' : 'transition-all duration-300'}`}
+      style={{ width: isExpanded ? 700 : cardWidth, height: isExpanded ? 600 : cardHeight }}>
       <Handle type="target" position={Position.Top} className="!bg-violet-500 !border-violet-400 !w-3 !h-3" />
 
       {/* Header */}
@@ -339,6 +344,14 @@ export function SkybridgeNode({ id, data }: NodeProps & { data: Record<string, u
       </div>
 
       <Handle type="source" position={Position.Bottom} className="!bg-violet-500 !border-violet-400 !w-3 !h-3" />
+
+      {/* Resize handle */}
+      {!isExpanded && (
+        <div className="absolute bottom-0 right-0 w-6 h-6 cursor-se-resize z-30 group"
+          onMouseDown={handleResizeStart}>
+          <div className="absolute bottom-1 right-1 w-3 h-3 border-b-2 border-r-2 border-slate-600 group-hover:border-violet-400 transition-colors rounded-br" />
+        </div>
+      )}
     </div>
   );
 }

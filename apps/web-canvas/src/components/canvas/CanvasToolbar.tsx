@@ -36,8 +36,73 @@ export function CanvasToolbar() {
   };
 
   const handleAutoLayout = () => {
-    const store = useCanvasStore.getState(); const cols = Math.ceil(Math.sqrt(store.nodes.length));
-    store.nodes.forEach((n, i) => { store.updateNodePosition(n.id, { x: 100 + (i % cols) * 400, y: 100 + Math.floor(i / cols) * 320 }); });
+    const store = useCanvasStore.getState();
+    const nodes = store.nodes;
+    if (nodes.length === 0) return;
+
+    // Smart layout: arrange in a grid with proper spacing
+    const cols = Math.ceil(Math.sqrt(nodes.length));
+    const spacing = 50;
+    const nodeWidth = 420;
+    const nodeHeight = 350;
+
+    nodes.forEach((n, i) => {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      store.updateNodePosition(n.id, {
+        x: 100 + col * (nodeWidth + spacing),
+        y: 100 + row * (nodeHeight + spacing),
+      });
+    });
+  };
+
+  const handleSmartOrganize = () => {
+    const store = useCanvasStore.getState();
+    const nodes = store.nodes;
+    if (nodes.length === 0) return;
+
+    // Find connected components and group them
+    const visited = new Set<string>();
+    const groups: string[][] = [];
+
+    const getConnected = (nodeId: string, group: string[]) => {
+      if (visited.has(nodeId)) return;
+      visited.add(nodeId);
+      group.push(nodeId);
+
+      // Find connected nodes via edges
+      store.edges.forEach(e => {
+        if (e.source === nodeId && !visited.has(e.target)) getConnected(e.target, group);
+        if (e.target === nodeId && !visited.has(e.source)) getConnected(e.source, group);
+      });
+    };
+
+    nodes.forEach(n => {
+      if (!visited.has(n.id)) {
+        const group: string[] = [];
+        getConnected(n.id, group);
+        groups.push(group);
+      }
+    });
+
+    // Layout each group
+    let yOffset = 100;
+    const spacing = 50;
+    const nodeWidth = 420;
+    const nodeHeight = 350;
+
+    groups.forEach((group) => {
+      const cols = Math.ceil(Math.sqrt(group.length));
+      group.forEach((nodeId, i) => {
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        store.updateNodePosition(nodeId, {
+          x: 100 + col * (nodeWidth + spacing),
+          y: yOffset + row * (nodeHeight + spacing),
+        });
+      });
+      yOffset += Math.ceil(group.length / cols) * (nodeHeight + spacing) + spacing;
+    });
   };
 
   return (
@@ -59,6 +124,7 @@ export function CanvasToolbar() {
       {/* Utility buttons */}
       {[
         { icon: <LayoutGrid size={14} />, action: handleAutoLayout, title: "Auto Layout", color: "hover:text-blue-400 hover:bg-blue-500/10" },
+        { icon: <LayoutGrid size={14} />, action: handleSmartOrganize, title: "Smart Organize (group connected)", color: "hover:text-purple-400 hover:bg-purple-500/10" },
         { icon: <Download size={14} />, action: handleExport, title: "Export", color: "hover:text-cyan-400 hover:bg-cyan-500/10" },
         { icon: <Upload size={14} />, action: handleImport, title: "Import", color: "hover:text-emerald-400 hover:bg-emerald-500/10" },
         { icon: <Trash2 size={14} />, action: clearCanvas, title: "Clear", color: "hover:text-red-400 hover:bg-red-500/10" },
