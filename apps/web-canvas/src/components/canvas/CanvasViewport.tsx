@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useState, useEffect } from "react";
 import {
   ReactFlow,
   Background,
@@ -38,6 +38,23 @@ const edgeTypes: EdgeTypes = {
 export function CanvasViewport() {
   const { nodes, edges, onNodesChange, onEdgesChange, onConnect, selectNode } =
     useCanvasStore();
+
+  // Track if any node is in annotation/lasso mode
+  const [isLassoActive, setIsLassoActive] = useState(false);
+
+  // Listen for lasso mode changes from nodes
+  useEffect(() => {
+    const handleLassoStart = () => setIsLassoActive(true);
+    const handleLassoEnd = () => setIsLassoActive(false);
+
+    window.addEventListener("canvas:lasso-start", handleLassoStart);
+    window.addEventListener("canvas:lasso-end", handleLassoEnd);
+
+    return () => {
+      window.removeEventListener("canvas:lasso-start", handleLassoStart);
+      window.removeEventListener("canvas:lasso-end", handleLassoEnd);
+    };
+  }, []);
 
   const onNodeClick = useCallback(
     (_: React.MouseEvent, node: { id: string }) => {
@@ -79,6 +96,12 @@ export function CanvasViewport() {
         maxZoom={4}
         className="bg-canvas-bg"
         proOptions={{ hideAttribution: true }}
+        // Disable pan/zoom when lasso is active
+        panOnDrag={!isLassoActive}
+        zoomOnScroll={!isLassoActive}
+        panOnScroll={false}
+        nodesDraggable={!isLassoActive}
+        nodesConnectable={!isLassoActive}
       >
         <Background
           variant={BackgroundVariant.Dots}
@@ -94,6 +117,7 @@ export function CanvasViewport() {
         <Panel position="bottom-left">
           <div className="text-[10px] text-slate-600 px-2 py-1">
             Canvas Core v0.1.0 • {nodes.length} nodes • {edges.length} edges
+            {isLassoActive && <span className="ml-2 text-amber-400">🎯 Lasso Mode Active</span>}
           </div>
         </Panel>
       </ReactFlow>

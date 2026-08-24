@@ -63,6 +63,15 @@ export function SkybridgeNode({ id, data }: NodeProps & { data: Record<string, u
     }
   }, [nodeData.widgetUrl, nodeData.widgetHtml]);
 
+  // Dispatch lasso mode events to disable canvas pan/zoom
+  useEffect(() => {
+    if (annotationMode === "lasso") {
+      window.dispatchEvent(new CustomEvent("canvas:lasso-start"));
+    } else {
+      window.dispatchEvent(new CustomEvent("canvas:lasso-end"));
+    }
+  }, [annotationMode]);
+
   useEffect(() => {
     const rf = document.querySelector(".react-flow");
     if (!rf) return;
