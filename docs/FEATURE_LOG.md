@@ -159,3 +159,36 @@
 - Nginx reverse proxy with SSL setup
 - Troubleshooting section
 - File locations reference table
+
+---
+
+## Phase 7: Smart Placement, Auto-Linking & Use Case Support (2026-08-24)
+
+### MCP Enhancements
+
+#### `create_canvas_card` — New Parameters
+- **`link_to`** (string): Parent node ID. Auto-creates an edge from parent to new card.
+- **`edge_status`** (string): Status for auto-created edge (`idle`, `running`, `success`, `error`).
+- **Smart Placement**: When `link_to` is provided, card is placed adjacent to parent (tries right, below-right, below, left).
+- **Arbitrary Data**: Any JSON payload in `data` passes through to the node without layout breakage.
+
+#### `getAdjacentPosition()` — CanvasStateService
+- Finds non-overlapping positions adjacent to a parent node.
+- Tries 5 candidate positions in priority order.
+- Falls back to standard non-overlapping placement if all adjacent spots are occupied.
+
+### Supported Use Case Patterns
+1. **Code Generation** → `code` node with `code`, `language`, `output` data
+2. **Research Trees** → `research` node with `tree` data (nested TreeNode[])
+3. **Troubleshooting Checklists** → `skybridge` node with checklist widget
+4. **Schema Design** → `scratchpad` node with ER diagram markdown
+5. **Visual Diffs** → `code` node with diff content
+6. **Tutorials** → `scratchpad` node with step-by-step content
+7. **Dashboards** → `skybridge` node with metrics widget
+8. **Charts** → `skybridge` node with chart widget
+9. **Parallel Chat** → Multiple `chat` nodes with isolated contexts
+10. **API Testing** → `skybridge` node with REST tester widget
+11. **Briefings** → `scratchpad` node with dossier content
+12. **File Trees** → `research` node with file structure
+13. **Booking** → `skybridge` node with time_slot_picker
+14. **Graph Explorer** → `skybridge` node with force-directed graph
