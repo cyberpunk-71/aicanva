@@ -152,7 +152,7 @@ export const useCanvasStore = create<CanvasState>()(
         const pos = getNonOverlappingPosition(get().nodes, position);
         const newNode: CanvasNode = {
           id,
-          type: "custom",
+          type: type, // Use actual type, not "custom"
           position: pos,
           data: { ...defaultNodeData[type] },
         };
