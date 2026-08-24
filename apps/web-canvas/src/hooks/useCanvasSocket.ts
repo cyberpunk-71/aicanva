@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from "react";
 import { useCanvasStore, type CanvasNode, type CanvasEdge } from "../store/canvasStore";
 
-const WS_URL = import.meta.env.VITE_GATEWAY_URL || "ws://localhost:3001";
+const WS_URL = import.meta.env.VITE_GATEWAY_URL || `ws://${window.location.hostname}:3001`;
 const RECONNECT_DELAYS = [1000, 2000, 4000, 8000, 10000];
 
 export function useCanvasSocket() {
