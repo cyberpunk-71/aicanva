@@ -5,29 +5,34 @@ export default {
     extend: {
       colors: {
         canvas: {
-          bg: "#0a0a0f",
-          grid: "#1a1a2e",
-          node: "#12121e",
-          border: "#2a2a3e",
+          bg: "#06060e",
+          grid: "#111128",
+          node: "rgba(15, 15, 30, 0.85)",
+          border: "rgba(99, 102, 241, 0.15)",
           accent: "#6366f1",
-          success: "#22c55e",
-          error: "#ef4444",
-          running: "#3b82f6",
         },
       },
       animation: {
         "edge-flow": "edgeFlow 2s linear infinite",
-        "pulse-soft": "pulseSoft 2s ease-in-out infinite",
+        "fade-in": "fadeIn 0.3s ease-out",
+        "slide-down": "slideDown 0.2s ease-out",
       },
       keyframes: {
         edgeFlow: {
           "0%": { strokeDashoffset: "24" },
           "100%": { strokeDashoffset: "0" },
         },
-        pulseSoft: {
-          "0%, 100%": { opacity: "0.6" },
-          "50%": { opacity: "1" },
+        fadeIn: {
+          from: { opacity: "0", transform: "translateY(8px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
         },
+        slideDown: {
+          from: { opacity: "0", transform: "translateY(-12px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+      },
+      backdropBlur: {
+        xs: "2px",
       },
     },
   },
