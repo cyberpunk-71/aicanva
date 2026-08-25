@@ -33,8 +33,11 @@ For real-time data, use WebSocket at ws://100.86.244.6:3001/ws or fetch from htt
   try {
     const fullMessage = `${canvasContext}\n\nUser: ${message}`;
     const escapedMsg = fullMessage.replace(/'/g, "'\\''").replace(/"/g, '\\"');
-    const cmd = `${HERMES_CLI} --continue -z "${escapedMsg}" 2>&1`;
+    
+    // Use simpler command without --continue for reliability
+    const cmd = `${HERMES_CLI} -z "${escapedMsg}" 2>&1`;
 
+    console.log(`[Hermes] Executing CLI command...`);
     const result = execSync(cmd, {
       timeout: 300000, // 5 minutes
       encoding: "utf-8",
@@ -42,6 +45,7 @@ For real-time data, use WebSocket at ws://100.86.244.6:3001/ws or fetch from htt
     });
 
     const response = result.trim();
+    console.log(`[Hermes] Response length: ${response.length}`);
 
     // Auto-detect HTML file creation
     let detectedFile = null;
